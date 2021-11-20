@@ -1,11 +1,10 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, Response, status, HTTPException
 from fastapi.param_functions import Body, Depends
-from pydantic import BaseModel
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.functions import mode
 from .database import engine, get_db
-from . import models
+from . import models, schemas
 import psycopg2
 import time
 from psycopg2.extras import RealDictCursor
@@ -13,12 +12,6 @@ from psycopg2.extras import RealDictCursor
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True 
 
 
 while True:
@@ -39,13 +32,13 @@ while True:
 async def root():
     return "Hello World"
 
-@app.get("/posts")
+@app.get("/posts", response_model=List[schemas.Post])
 def get_post(db: Session = Depends(get_db)):
     posts = db.query(models.Post).all()
     return posts
 
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_post(post: Post, db: Session = Depends(get_db)):
+@app.post("/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
+def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * """, (
     #     post.title, post.content, post.published))
     # new_post = cursor.fetchone()
@@ -57,7 +50,7 @@ def create_post(post: Post, db: Session = Depends(get_db)):
     return new_post
 
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}", response_model=schemas.Post)
 def get_post(id: int, db: Session = Depends(get_db)): 
     # cursor.execute("""SELECT * FROM posts WHERE id = (%s)""", (str(id)))
     # post = cursor.fetchone()    
@@ -69,8 +62,8 @@ def get_post(id: int, db: Session = Depends(get_db)):
     return post
 
 
-@app.put("/update_post/{id}")
-def update_post(id:int, post: Post, db: Session = Depends(get_db)):
+@app.put("/update_post/{id}", response_model=schemas.Post)
+def update_post(id:int, post: schemas.PostCreate, db: Session = Depends(get_db)):
 
     # cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING *""",
     # (post.title, post.content, post.published, str(id)))
